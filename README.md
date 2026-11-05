@@ -36,7 +36,7 @@ cannot get stuck: every dead end resolves to refunds.
 ## Run it
 ```bash
 npm install && (cd web && npm install)
-npx hardhat test                            # 14 contract tests (+1 fork test, skipped unless FORK=1)
+npx hardhat test                            # 15 contract tests (+1 fork test, skipped unless FORK=1)
 FORK=1 npx hardhat test test/fork.test.js   # same lifecycle on a BOT Chain mainnet fork (chain 677); sends nothing
 (cd web && npm test && npm run build)       # 3 helper tests + production build
 # local demo
