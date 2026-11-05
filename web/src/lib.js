@@ -38,3 +38,13 @@ export function projectedPayout(stake, side, yes, no) {
   const prize = total - (total * FEE_BPS) / 10000n;
   return (s * prize) / poolAfter;
 }
+
+/** Filter bucket for the market grid, from a phase() result and the clock. */
+export function bucket(ph, now) {
+  if (ph.key === "betting") return ph.until - now < 2 * 86400 ? "closing" : "open";
+  if (ph.key === "arbitrating") return "disputed";
+  if (ph.key === "resolved") return "resolved";
+  return "resolving"; // awaiting, disputable, finalizable, expirable
+}
+/** Whether a bucket belongs under a filter tab (closing-soon markets are also open). */
+export const inFilter = (b, f) => f === "all" || b === f || (f === "open" && b === "closing");

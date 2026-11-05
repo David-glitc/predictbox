@@ -18,3 +18,14 @@ describe("lib", () => {
     expect(projectedPayout(10n ** 18n, "yes", 4n * 10n ** 18n, 10n ** 18n)).toBe(1176000000000000000n);
   });
 });
+import { bucket, inFilter } from "./lib.js";
+describe("buckets", () => {
+  it("maps phases to filters", () => {
+    expect(bucket({ key: "betting", until: 100 + 3600 }, 100)).toBe("closing");
+    expect(bucket({ key: "betting", until: 100 + 5 * 86400 }, 100)).toBe("open");
+    expect(bucket({ key: "arbitrating" }, 0)).toBe("disputed");
+    expect(bucket({ key: "finalizable" }, 0)).toBe("resolving");
+    expect(inFilter("closing", "open")).toBe(true);
+    expect(inFilter("resolved", "open")).toBe(false);
+  });
+});
