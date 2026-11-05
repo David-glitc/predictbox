@@ -16,6 +16,8 @@ const ABI = [
 const markets = ref([]), account = ref(""), err = ref(""), busy = ref(false), credit = ref(0n);
 const q = ref(""), days = ref(7), bond = ref("0.5"), amt = ref({}), now = ref(Math.floor(Date.now() / 1000));
 let cfg, ro, rw;
+const info = ref(null), EXPLORER = "https://scan.botchain.ai";
+const isMainnet = computed(() => info.value && info.value.chainId === 677 && /^https:/.test(info.value.rpc) && info.value.launched);
 
 async function load() {
   const n = Number(await ro.marketCount()); const out = [];
@@ -29,13 +31,20 @@ async function load() {
 onMounted(async () => {
   try {
     cfg = await (await fetch("/deployment.json")).json();
-    ro = new Contract(cfg.address, ABI, new JsonRpcProvider(cfg.rpc)); await load();
+    ro = new Contract(cfg.address, ABI, new JsonRpcProvider(cfg.rpc)); info.value = cfg; await load();
   } catch (e) { err.value = "No deployment.json or RPC unreachable: " + e.message; }
   setInterval(() => (now.value = Math.floor(Date.now() / 1000)), 1000);
 });
 async function connect() {
   try {
-    const bp = new BrowserProvider(window.ethereum); await bp.send("eth_requestAccounts", []);
+    let bp = new BrowserProvider(window.ethereum); await bp.send("eth_requestAccounts", []);
+    if (Number((await bp.getNetwork()).chainId) !== cfg.chainId) {
+      const hex = "0x" + cfg.chainId.toString(16);
+      try { await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: hex }] }); }
+      catch (e) { if (e.code !== 4902 && e?.data?.originalError?.code !== 4902) throw e;
+        await window.ethereum.request({ method: "wallet_addEthereumChain", params: [{ chainId: hex, chainName: "BOT Chain", nativeCurrency: { name: "BOT", symbol: "BOT", decimals: 18 }, rpcUrls: [cfg.rpc], blockExplorerUrls: [EXPLORER] }] }); }
+      bp = new BrowserProvider(window.ethereum);
+    }
     const net = await bp.getNetwork(); if (net.chainId !== BigInt(cfg.chainId)) throw new Error(`Switch wallet to chain ${cfg.chainId}`);
     const s = await bp.getSigner(); account.value = await s.getAddress(); rw = new Contract(cfg.address, ABI, s); await load();
   } catch (e) { err.value = e.shortMessage || e.message; }
@@ -58,6 +67,8 @@ const f = (w) => Number(formatEther(w)).toLocaleString(undefined, { maximumFract
     <div><span v-if="credit > 0n" class="mut">Withdrawable {{ f(credit) }} BOT <button class="ghost" @click="send(() => rw.withdraw())">Withdraw</button> </span>
     <button v-if="!account" @click="connect">Connect wallet</button><span v-else class="mut">{{ account.slice(0, 8) }}…</span></div></header>
   <p class="mut">Binary markets in BOT. Creators post a bond, resolve after close, anyone can dispute within 24h by matching the bond. Browsing works without a wallet.</p>
+  <aside v-if="isMainnet" class="launch" aria-label="Launch announcement"><b>Officially launched on BOT Chain Mainnet</b>
+    <span class="mut">{{ info.launched }} · PredictBox <a :href="EXPLORER + '/address/' + info.address" target="_blank" rel="noopener noreferrer">{{ info.address }}</a> · {{ markets.length }} market{{ markets.length === 1 ? "" : "s" }}</span></aside>
   <p v-if="err" class="err">{{ err }}</p>
   <div class="card" v-if="account"><b>Create a market</b>
     <div class="row"><input class="wide" v-model="q" maxlength="280" placeholder="Will … happen by …?"></div>
